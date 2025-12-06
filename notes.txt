@@ -1,0 +1,10 @@
+1) install required crates, tokio, reqwest,tokio => tick
+2) create schema structure for user input(for clap) on terminal and response after the code runs => tick
+3) create required folders and files 
+4) write code tokio async, concurrent function the sends requests to the api, it should also tracks total requests and how may of them success and failed
+5) write functions that calculate latency
+6) calculate  a function that tells success and failed percentages
+7) create a function that  Can show how many 2xx / 4xx / 5xx responses occurred.
+
+
+resume from passing headers in request
