@@ -28,7 +28,7 @@ async fn main() {
     send_async_req(cli, &mut metrics).await;
 
     println!(
-    "total={}, errors={}, RPS={:.2}, min={:?}, max={:?}, p95={:?}",
+    "total={}, \nerrors={}, \nRPS={:.2}, \nmin={:?}, \nmax={:?}, \np95={:?}",
     metrics.total_requests,
     metrics.error_rate,
     metrics.RPS,
