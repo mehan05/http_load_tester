@@ -38,11 +38,12 @@ pub struct Cli{
     pub timeout:Duration
 }
 
-#[derive(   Debug,Clone,Copy)]
+#[derive(  Debug,Clone,Copy)]
 pub struct Metrics{
     pub total_requests:u64,
     pub RPS:f64,
     pub error_rate:f64,
+    pub total_errors:u64,
     pub min_latency:Duration,
     pub max_latency:Duration,
     pub p95_latency:Duration

@@ -83,7 +83,8 @@ pub async  fn send_async_req(cli:Cli,overall_metrics:&mut Metrics){
 
                                 if (400..=499).contains(&status.as_u16()) || (500..=599).contains(&status.as_u16())
                                 {
-                                    metrics.errors.saturating_add(1);
+                                    metrics.errors=1;
+                                    
                                 }
                             }
                             
@@ -102,31 +103,29 @@ pub async  fn send_async_req(cli:Cli,overall_metrics:&mut Metrics){
     }
 drop(tx);
 
-let mut RPS = 0;
-
 while let Some(rx)  = rx.recv().await{
     let rx = rx.clone();
    overall_metrics.total_requests= overall_metrics.total_requests.saturating_add(1);
-//    overall_metrics.total_requests= overall_metrics.total_requests.saturating_add(rx.total_requests);
+    
+    overall_metrics.total_errors = overall_metrics.total_errors.saturating_add(rx.errors);
 
-   let error_rate = if overall_metrics.total_requests>0{
-    overall_metrics.error_rate = (rx.errors*100).saturating_div(overall_metrics.total_requests) as f64;
+   if overall_metrics.total_requests>0{
+    overall_metrics.error_rate = (overall_metrics.total_errors*100).saturating_div(overall_metrics.total_requests) as f64;
     overall_metrics.error_rate
    }
    else{
     0.0
    };
-
    let elapsed_float_sec = start_time.elapsed().as_secs_f64().max(0.00001);
-
+   
    let RPS = overall_metrics.total_requests as f64/elapsed_float_sec;
    overall_metrics.RPS = RPS;
-
-   let elapsed_secs = start_time.elapsed().as_secs().min(duration.as_secs());
-    progressbar.set_position(elapsed_secs);
    
-
-
+   let elapsed_secs = start_time.elapsed().as_secs().min(duration.as_secs());
+   progressbar.set_position(elapsed_secs);
+   
+   
+   
 }
  let mut all_latencies:Vec<Duration> = Vec::new();
 
