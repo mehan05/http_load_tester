@@ -107,9 +107,10 @@ while let Some(rx)  = rx.recv().await{
    else{
     0.0
    };
-
-   RPS = overall_metrics.total_requests.saturating_div(rx.time_taken.as_secs() as u64);
-   overall_metrics.RPS = RPS;
+   if rx.time_taken.as_secs()>0{
+       RPS = overall_metrics.total_requests.saturating_div(rx.time_taken.as_secs() as u64);
+       overall_metrics.RPS = RPS;
+   }
    
 
 
@@ -127,6 +128,10 @@ let p95_latency =all_latencies [(all_latencies.len() as f64 * 0.95) as usize-1];
 let min_latency = all_latencies.first().copied();
 
 let max_latency = all_latencies.last().copied();
+
+overall_metrics.min_latency = min_latency.unwrap_or(Duration::ZERO);
+overall_metrics.max_latency = max_latency.unwrap_or(Duration::ZERO);
+overall_metrics.p95_latency = p95_latency;
 
     
 }

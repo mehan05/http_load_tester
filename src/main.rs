@@ -1,4 +1,6 @@
 pub mod state;
+use std::time::Duration;
+
 use clap::Parser;
 use state::*;
 
@@ -10,16 +12,20 @@ use utils::*;
 
 #[tokio::main]
 async fn main() {
-    println!("Hello, world!");
-    let metrics = Metrics{
+    let mut metrics = Metrics{
         total_requests:0,
         RPS:0,
         error_rate:0.0,
-        min_latency:0,
-        max_latency:0,
-        p95_latency:0
+        min_latency:Duration::ZERO,
+        max_latency:Duration::ZERO,
+        p95_latency:Duration::ZERO
     };
 
 
     let cli = Cli::parse();
+
+    send_async_req(cli, &mut metrics).await;
+
+    println!("{:?}",metrics);
+
 }
