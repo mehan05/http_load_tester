@@ -14,7 +14,7 @@ use utils::*;
 async fn main() {
     let mut metrics = Metrics{
         total_requests:0,
-        RPS:0,
+        RPS:0.0,
         error_rate:0.0,
         min_latency:Duration::ZERO,
         max_latency:Duration::ZERO,

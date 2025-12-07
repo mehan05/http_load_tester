@@ -41,7 +41,7 @@ pub struct Cli{
 #[derive(   Debug,Clone,Copy)]
 pub struct Metrics{
     pub total_requests:u64,
-    pub RPS:u64,
+    pub RPS:f64,
     pub error_rate:f64,
     pub min_latency:Duration,
     pub max_latency:Duration,

@@ -2,16 +2,16 @@ use std::clone;
 use std::time::{Duration, Instant};
 
 use clap::Parser;
+use indicatif::ProgressBar;
 use reqwest::Client;
 use tokio::{sync::mpsc, task::*};
-use tokio::task;
+use tokio::{task, time};
 
 use crate::state::{Cli, HttpRequestMethods, Metrics};
-use crate::utils::{header_mapper, header_spliter};
+use crate::utils::{ header_mapper, header_spliter};
 
 #[derive(Debug,Clone, Copy)]
 pub struct MetricsCalculateValues{
-    total_requests:u64,
     errors:u64,
     start_time:Instant,
     time_taken:std::time::Duration,
@@ -25,6 +25,11 @@ pub async  fn send_async_req(cli:Cli,overall_metrics:&mut Metrics){
     let http_method = cli.method;
     let req_per_worker = 10;
 
+    let progressbar = ProgressBar::new(duration.as_secs() );
+    let start_time = Instant::now();
+
+    
+
     let mut handlers: Vec<JoinHandle<( Vec<std::time::Duration>)>> = Vec::with_capacity(concurrency as usize);
     let (tx,mut rx) = mpsc::channel::<MetricsCalculateValues>(concurrency);
      let headers = header_mapper(&cli.header);
@@ -34,10 +39,10 @@ pub async  fn send_async_req(cli:Cli,overall_metrics:&mut Metrics){
          let tx = tx.clone();
          let headers = headers.clone();
          let method = http_method;
+         let pb = progressbar.clone();
          let handler = task::spawn(async move {
              
              let mut metrics = MetricsCalculateValues{
-                                 total_requests:0,
                                 errors:0,
                                 start_time:Instant::now(),
                                 time_taken:std::time::Duration::ZERO,
@@ -45,13 +50,19 @@ pub async  fn send_async_req(cli:Cli,overall_metrics:&mut Metrics){
             let mut latencies:Vec<Duration> = vec![];
 
                 for _ in 0..req_per_worker{
-                    
-                     
+                    let req_start_time = Instant::now();
+                    let deadline = start_time + duration;
+                       if Instant::now()>deadline{
+                                break;
+                            }
 
-                       let start_time = Instant::now();
+                    let remaining_time = deadline.saturating_duration_since(req_start_time);
 
                             let mut req = match method{
-                                      HttpRequestMethods::GET=>client.get(&url),
+                                      HttpRequestMethods::GET=>
+                                      {
+                                       client.get(&url)
+                                      },
                                     HttpRequestMethods::POST=>client.post(&url),
                                     HttpRequestMethods::PUT=>client.put(&url),
                                     HttpRequestMethods::PATCH=>client.patch(&url),
@@ -61,10 +72,11 @@ pub async  fn send_async_req(cli:Cli,overall_metrics:&mut Metrics){
                             if !headers.is_empty(){
                                req =  req.headers(headers.clone());
                             }
-                            let resp = req.send().await.ok();
+                            let resp = time::timeout(remaining_time,  req.send()).await.ok().and_then(|r|r.ok());
 
-                            let time_taken  = start_time.elapsed();
+                            let time_taken  = req_start_time.elapsed();
                             latencies.push(time_taken);
+                            
 
                             if let Some(resp) = resp{
                                 let status = resp.status();
@@ -75,16 +87,12 @@ pub async  fn send_async_req(cli:Cli,overall_metrics:&mut Metrics){
                                 }
                             }
                             
-
-                            metrics.total_requests = metrics.total_requests.saturating_add(1);
                             metrics.start_time = start_time;
                             metrics.time_taken = time_taken;
 
                             tx.send(metrics).await.unwrap();
 
-                            if Instant::now()>start_time+duration{
-                                break;
-                            }
+                         
 
                 }
             (latencies)
@@ -98,7 +106,8 @@ let mut RPS = 0;
 
 while let Some(rx)  = rx.recv().await{
     let rx = rx.clone();
-   overall_metrics.total_requests= overall_metrics.total_requests.saturating_add(rx.total_requests);
+   overall_metrics.total_requests= overall_metrics.total_requests.saturating_add(1);
+//    overall_metrics.total_requests= overall_metrics.total_requests.saturating_add(rx.total_requests);
 
    let error_rate = if overall_metrics.total_requests>0{
     overall_metrics.error_rate = (rx.errors*100).saturating_div(overall_metrics.total_requests) as f64;
@@ -107,10 +116,14 @@ while let Some(rx)  = rx.recv().await{
    else{
     0.0
    };
-   if rx.time_taken.as_secs()>0{
-       RPS = overall_metrics.total_requests.saturating_div(rx.time_taken.as_secs() as u64);
-       overall_metrics.RPS = RPS;
-   }
+
+   let elapsed_float_sec = start_time.elapsed().as_secs_f64().max(0.00001);
+
+   let RPS = overall_metrics.total_requests as f64/elapsed_float_sec;
+   overall_metrics.RPS = RPS;
+
+   let elapsed_secs = start_time.elapsed().as_secs().min(duration.as_secs());
+    progressbar.set_position(elapsed_secs);
    
 
 
@@ -133,5 +146,5 @@ overall_metrics.min_latency = min_latency.unwrap_or(Duration::ZERO);
 overall_metrics.max_latency = max_latency.unwrap_or(Duration::ZERO);
 overall_metrics.p95_latency = p95_latency;
 
-    
+
 }

@@ -1,4 +1,4 @@
-use std::io::{self, Write};
+use std::{io::{self, Write}, thread, time::Duration};
 
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 
@@ -28,3 +28,4 @@ pub fn header_mapper(h:&[String])->HeaderMap{
 
     headermap
 }
+
